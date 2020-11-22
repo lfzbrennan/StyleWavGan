@@ -73,7 +73,7 @@ class Generator(nn.Module):
 		self.output_linear = Conv1d1x1(self.block_map[-1][1], 1)
 
 		# output layer -> 256 softmax in this case
-		self.output = torch.tanh()
+		self.output = nn.Tanh()
 
 
 	def forward(self, style):
@@ -124,7 +124,7 @@ class Descriminator(nn.Module):
 			
 		]
 
-		self.input_linear = nn.Conv1d1x1(1, self.block_map[0][1])
+		self.input_linear = Conv1d1x1(1, self.block_map[0][1])
 
 		# base wavenet blocks
 		self.wavenet_blocks = nn.ModuleList()

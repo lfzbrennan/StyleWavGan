@@ -20,6 +20,7 @@ def Conv1d1x1(in_channels, out_channels, bias=True):
 	return Conv1d(in_channels, out_channels, kernel_size=1, padding=0,
 				  dilation=1, bias=bias)
 
+# noise injection module
 class NoiseInjection(nn.Module):
 	def __init__(self):
 		super().__init__()

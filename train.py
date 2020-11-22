@@ -1,11 +1,11 @@
 from model import Generator, Descriminator
 from dataset import FMADataset
-from utils import save_model, quantize
+from utils import save_model, quantize, save_audio_sample
 
 import torch
 import torch.nn as nn 
 import torch.nn.functional as F 
-from torch.optim import Adam
+from torch.optim import AdamW
 from torch.utils.data import RandomSampler, DataLoader
 import numpy as np
 from tqdm import trange, tqdm
@@ -51,43 +51,51 @@ def g_regularize(fake_img, latents, mean_path_length, decay=0.01):
 def train(output_dir="outputs/train1"):
 	logger = Logger(output_dir + "/out.log")
 
-	batch_size = 24
+	device = torch.device("cuda")
+
+	batch_size = 8
 	epochs = 10
-	learning_rate = 1e-4
+	learning_rate = 1e-3
 	r1_weight = 10
 	path_regularize = 2
 
-	save_log_interval = 10000
+	save_log_interval = 10
 	mean_path_length = 0
 
-	style_dim = 256
+	style_dim = 512
 	gate_channels = 512
 
 	global_step = 0
 
 	num_regularize = 16
+	print("Building models...")
 
 	g = Generator(style_dim, gate_channels)
-	g = nn.DataParellel(g, device_ids=[0, 1])
+	g = nn.DataParallel(g, device_ids=[0, 1])
+	g.to(device)
 
-	g_optim = Adam(g.parameters(), learning_rate, .99)
+	g_optim = AdamW(g.parameters(), learning_rate)
 
 	d = Descriminator(gate_channels)
-	d = nn.DataParellel(d, device_ids=[2, 3])
+	d = nn.DataParallel(d, device_ids=[2, 3])
+	d.to(device)
 
-	d_optim = Adam(d.parameters(), learning_rate, .99)
+	d_optim = AdamW(d.parameters(), learning_rate)
 
+	print("Building dataloaders...")
 	dataset = FMADataset()
-	data_sampler = RandomSampler()
-	dataloader = DataLoader(dataset, sampler=data_sampler, batch_size=batch_size, num_workers=4)
+	data_sampler = RandomSampler(dataset)
+	dataloader = DataLoader(dataset, sampler=data_sampler, batch_size=batch_size, num_workers=8)
 
 
 	avg_d_loss, avg_g_loss = 0.0, 0.0
 
 	training_iterator = trange(0, epochs, desc="Epochs")
+	print("Starting training...")
 	for cur_epoch in training_iterator:
-		epoch_iterator = tqdm(data_loader, desc="Iteration")
+		epoch_iterator = tqdm(dataloader, desc="Iteration")
 		for step, batch in enumerate(epoch_iterator):
+			batch = batch.to(device)
 			global_step += 1
 
 			random_styles = torch.randn(batch_size, 1, style_dim)
@@ -142,8 +150,9 @@ def train(output_dir="outputs/train1"):
 				avg_d_loss, avg_g_loss = 0.0, 0.0
 
 				### save
-
-				save_model(f"{output_dir}/checkpoint-{global_step}", g.module, d.module)
+				save_dir = f"{output_dir}/checkpoint-{global_step}"
+				save_model(save_dir, g.module, d.module)
+				save_audio_sample(save_dir, fake_audio[0])
 
 
 	save_model(f"{output_dir}/final", g.module, d.module)
