@@ -1,9 +1,5 @@
-import torch 
-import torch.nn as nn 
-import torch.nn.functional as F 
-
-import math
-import numpy as np
+import torch
+import torch.nn as nn
 
 from layers import *
 
@@ -29,8 +25,8 @@ class Generator(nn.Module):
 		# learning input embedding = 64x1024
 
 		self.input_channels = 1024
-		self.input_length = 64
-		self.output_channels = 256
+		self.input_length = 128
+		self.output_channels = 128
 
 		self.gate_channels = gate_channels
 		self.style_dim = style_dim
@@ -52,11 +48,11 @@ class Generator(nn.Module):
 
 		# (n_layers, output_channel)
 		self.block_map = [
-			(5, 1024, True),  
-			(7, 512, True), 
-			(9, 512, True),
-			(11, 512, True),
-			(13, 256, False)
+			(5, 512, True),
+			(7, 256, True),
+			(9, 128, True),
+			(11, 64, True),
+			(13, 32, False)
 		]
 
 		# base wavenet blocks
@@ -84,17 +80,16 @@ class Generator(nn.Module):
 
 		latents = [self.style(s) for s in style]
 		#latents = self.style(style)
-		
+
 		# push through constant learned layer
 		out = self.input(latents[0])
 
 		# push through wavenet blocks
 		for i, block in enumerate(self.wavenet_blocks):
 			out = block(out, latents[i % len(latents)])
-			print(out.shape)
 
 
-		out = output_linear(out)
+		out = self.output_linear(out)
 
 
 		# get output function and return output
@@ -109,19 +104,19 @@ class Descriminator(nn.Module):
 
 		# learning input embedding = 64x1024
 
-		self.input_channels = 256
-		self.output_channels = 64
+		self.input_channels = 128
+		self.output_channels = 128
 
 		self.gate_channels = gate_channels
 
 		# (n_layers, output_channel)
 		self.block_map = [
-			(13, 256),
-			(11, 512),
-			(9, 512),
-			(7, 512), 
-			(5, 1024) 
-			
+			(13, 32),
+			(11, 64),
+			(9, 128),
+			(7, 256),
+			(5, 512)
+
 		]
 
 		self.input_linear = Conv1d1x1(1, self.block_map[0][1])
@@ -138,22 +133,21 @@ class Descriminator(nn.Module):
 			self.wavenet_blocks.append(WavenetBlock(in_channels, out_channels, self.gate_channels, n_layers=layers))
 
 		self.final_layer = nn.Sequential(
-			EqualLinear(self.output_channels * 1024, 1024, activation=True),
-			EqualLinear(1024, 1)
-			) 
+			EqualLinear(self.output_channels * self.block_map[-1][1], self.block_map[-1][1], activation=True),
+			EqualLinear(self.block_map[-1][1], 1)
+			)
 
 
 	def forward(self, audio):
 
-		audio = self.input_linear(block)
+		audio = self.input_linear(audio)
 		# push through wavenet blocks
 		for i, block in enumerate(self.wavenet_blocks):
 			audio = block(audio)
-			print(audio.shape)
 
 
 		out = audio.view(audio.shape[0], -1)
-
+		#print(out.shape)
 
 		out = self.final_layer(out)
 
