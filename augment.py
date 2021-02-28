@@ -4,7 +4,7 @@ from librosa.effects import time_stretch
 
 import random
 
-
+# adaptive augment class based on StyleGan2 paper
 class AdaptiveAugment():
 	def __init__(self, aug_target=.6, aug_len=5e5, update_every=8, device=None):
 		self.data_aug_target = aug_target
@@ -17,6 +17,7 @@ class AdaptiveAugment():
 		self.ada_aug_p = 0
 
 
+	# update learning rate based on discriminator performance
 	def tune(self, real_pred):
 		self.ada_aug_buf += torch.tensor(
 			(torch.sign(real_pred).sum().item(), real_pred.shape[0]),
@@ -42,6 +43,8 @@ class AdaptiveAugment():
 
 		return self.ada_aug_p
 
+
+	# augment -> called before real and pred goes through discriminator
 	def augment(self, audio):
 		if random.random() > self.ada_aug_p:
 			audio = self.amp_augment(audio)
@@ -49,11 +52,13 @@ class AdaptiveAugment():
 			audio = audio
 		return audio
 
+	# augment the amplitude of the audio segment
 	def amp_augment(self, audio):
 		audio *= random.randrange(.5, 2)
 		audio = np.clip(audio, 0, 255)
 		return audio
 
+	# augment frequency of audio segment
 	def freq_augment(self, audio):
 		audio = time_stretch(audio, rate=random.randrange(.5, 2))
 		return audio

@@ -4,32 +4,36 @@ from utils import save_model, quantize, save_audio_sample
 import os
 
 import torch
-import torch.nn as nn 
-import torch.nn.functional as F 
+import torch.nn as nn
+import torch.nn.functional as F
 from torch import autograd
 from torch.optim import Adam
 from torch.utils.data import RandomSampler, DataLoader
-import numpy as np
+import math
 from tqdm import trange, tqdm
 
 from logger import Logger
 from augment import AdaptiveAugment
 
+# change gradient usage
 def requires_grad(model, flag=True):
     for p in model.parameters():
         p.requires_grad = flag
 
+# descriminator loss
 def des_loss(real_pred, fake_pred):
 	real_loss = F.softplus(-real_pred)
 	fake_loss = F.softplus(fake_pred)
 
 	return real_loss.mean() + fake_loss.mean()
 
+# generator loss
 def gen_loss(fake_pred):
 	loss = F.softplus(-fake_pred)
 
 	return loss.mean()
 
+# descriminator regularization loss
 def d_regularize(real_pred, real_img):
 	grad_real, = autograd.grad(
 		outputs=real_pred.sum(), inputs=real_img
@@ -38,6 +42,7 @@ def d_regularize(real_pred, real_img):
 
 	return grad_penalty
 
+# generator regularlization loss
 def g_regularize(fake_img, latents, mean_path_length, decay=0.01):
 	noise = torch.randn_like(fake_img) / math.sqrt(
 		fake_img.shape[2] * fake_img.shape[3]
@@ -53,17 +58,17 @@ def g_regularize(fake_img, latents, mean_path_length, decay=0.01):
 
 	return path_penalty, path_mean.detach(), path_lengths
 
-
-
+# main train function
 def train(output_dir="outputs/train1"):
 	if not os.path.exists(output_dir):
 		os.mkdir(output_dir)
 	logger = Logger(output_dir + "/out.log")
 
-	device = torch.device("cuda")
+	# split models among cuda devices -> script wrote for 4 parallel 1080ti
 	device1 = torch.device("cuda:0")
 	device2 = torch.device("cuda:2")
 
+	# initialize model and training parameters
 	batch_size = 4
 	epochs = 10
 	learning_rate = .002
@@ -87,6 +92,7 @@ def train(output_dir="outputs/train1"):
 
 	print("Building models...")
 
+	# build models (and optimizers) and put on correct device in parallel
 	g = Generator(style_dim, gate_channels)
 	g = nn.DataParallel(g, device_ids=[0, 1])
 	g.to(device1)
@@ -100,6 +106,7 @@ def train(output_dir="outputs/train1"):
 	d_optim = Adam(d.parameters(), learning_rate * d_reg_ratio, betas=(0, .99 ** d_reg_ratio))
 
 	print("Building dataloaders...")
+	# create dataloaders
 	augment = AdaptiveAugment(device=device2)
 	dataset = FMADataset(augment)
 	data_sampler = RandomSampler(dataset)
@@ -109,6 +116,7 @@ def train(output_dir="outputs/train1"):
 
 	training_iterator = trange(0, epochs, desc="Epochs")
 	print("Starting training...")
+	# training loop
 	for cur_epoch in training_iterator:
 		epoch_iterator = tqdm(dataloader, desc="Iteration")
 		for step, batch in enumerate(epoch_iterator):
@@ -117,13 +125,12 @@ def train(output_dir="outputs/train1"):
 			real_audio = torch.unsqueeze(batch, 1)
 
 			# train discriminator
-
 			requires_grad(d, True)
 			requires_grad(g, False)
+
 			random_styles = torch.randn(batch_size, 1, style_dim).to(device1)
 			fake_audio, latents = g(random_styles)
 			fake_audio = fake_audio.detach().cpu().numpy()
-			#print(fake_audio.shape)
 			fake_audio = quantize(fake_audio)
 			fake_audio = torch.tensor(fake_audio, device=device2)
 
@@ -137,12 +144,13 @@ def train(output_dir="outputs/train1"):
 
 			avg_d_loss += d_loss.item()
 
+			# update adaptive augmentor if applicable
 			if global_step % augment_regularize:
 				dataset.augment.tune(real_pred)
 
+            # regualize descrimnator if applicable
 			if global_step % num_regularize_d == 0:
 
-				## descriminator regularization
 				real_audio.requires_grad = True
 
 				#real_pred = d(real_audio)
@@ -153,14 +161,13 @@ def train(output_dir="outputs/train1"):
 				d_optim.step()
 
 			# train generator
-
 			requires_grad(d, False)
 			requires_grad(g, True)
 
 			random_styles = torch.randn(batch_size, 1, style_dim).to(device1)
 			fake_audio, latents = g(random_styles)
 			fake_audio = fake_audio.detach().cpu().numpy()
-		
+
 			fake_audio = quantize(fake_audio)
 			fake_audio = torch.tensor(fake_audio, device=device2)
 
@@ -172,17 +179,16 @@ def train(output_dir="outputs/train1"):
 			g_optim.step()
 			avg_g_loss += g_loss.item()
 
-			
+            # regularize generator if applicable
 			if global_step % num_regularize_g == 0:
-
-				## generator regularization
 
 				path_loss, mean_path_length, path_lengths = g_regularize(fake_audio, latents, mean_path_length)
 				g.zero_grad()
 				weighted_path_loss = path_regularize * num_regularize_g * path_loss
 				weighted_path_loss.backward()
 				g_optim.step()
-			
+
+            # log and save sample if applicable
 			if global_step % save_log_interval == 0 or global_step == 1:
 				### log
 				if global_step != 1:
@@ -209,5 +215,3 @@ def train(output_dir="outputs/train1"):
 
 if __name__ == "__main__":
 	train(output_dir="outputs/train3")
-
-

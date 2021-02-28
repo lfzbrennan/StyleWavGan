@@ -1,12 +1,10 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F 
+import torch.nn.functional as F
 import math
-import numpy as np
 
 
 # 1d convolution wrapper
-
 def Conv1d(in_channels, out_channels, kernel_size, dropout=0, **kwargs):
 	m = nn.Conv1d(in_channels, out_channels, kernel_size, **kwargs)
 	nn.init.kaiming_normal_(m.weight, nonlinearity="relu")
@@ -33,8 +31,8 @@ class NoiseInjection(nn.Module):
 
 		return input + self.weight * noise
 
-		
-## linear style modulation layer
+
+# linear style modulation layer
 class EqualLinear(nn.Module):
 	def __init__(self, in_dim, out_dim, bias_init=0, lr_mul=1, activation=False):
 		super().__init__()
@@ -55,6 +53,7 @@ class EqualLinear(nn.Module):
 
 		return out
 
+# 1d modulated convolution layer
 class EqualConv1d(nn.Module):
     def __init__(self, in_channel, out_channel, kernel_size=3, stride=1, padding=0, dilation=1, bias=True):
         super().__init__()
@@ -98,12 +97,12 @@ class StyledConv1d(nn.Module):
 		fan_in = in_channel * kernel_size ** 2
 		self.scale = 1 / math.sqrt(fan_in)
 		self.padding = (kernel_size - 1) // 2 * dilation
-		self.dilation = dilation 
+		self.dilation = dilation
 
 		self.weight = nn.Parameter(torch.randn(1, out_channel, in_channel, kernel_size))
 
 		self.modulation = EqualLinear(style_dim, in_channel, bias_init=1)
-		
+
 	def forward(self, inputs, style):
 		batch, in_channel, length = inputs.shape
 
@@ -125,6 +124,7 @@ class StyledConv1d(nn.Module):
 
 		return out
 
+# styled 1D convolution layer
 class StyledConvLayer(nn.Module):
 	def __init__(self, resid_channels, gate_channels, style_dim, kernel_size, dilation, noise=False):
 		super().__init__()
@@ -136,7 +136,6 @@ class StyledConvLayer(nn.Module):
 		self.conv1x1_out = Conv1d1x1(gate_channels // 2, resid_channels)
 
 		# noise
-
 		self.noise = noise
 
 		if self.noise:
@@ -159,6 +158,7 @@ class StyledConvLayer(nn.Module):
 
 		return x
 
+# residual 1D convolutional layer
 class ResConvLayer(nn.Module):
 	def __init__(self, resid_channels, gate_channels, kernel_size, dilation):
 		super().__init__()
@@ -185,6 +185,7 @@ class ResConvLayer(nn.Module):
 
 		return x
 
+# downsample convolutional layer
 class DownConvLayer(nn.Module):
 	def __init__(self, resid_channels, gate_channels):
 		super().__init__()
@@ -206,7 +207,7 @@ class DownConvLayer(nn.Module):
 
 		return x
 
-
+# upsample convolutional layer
 class UpConvLayer(nn.Module):
 	def __init__(self, resid_channels, gate_channels):
 		super().__init__()
@@ -237,8 +238,8 @@ class WavenetBlock(nn.Module):
 
 
 		#### input = (B, resid_channels, T)
-		#### output = (B, out_channels, T*4)
-		
+		#### output = (B, out_channels, T//4)
+
 		self.conv_layers = nn.ModuleList()
 
 		for i in range(n_layers):
@@ -246,7 +247,7 @@ class WavenetBlock(nn.Module):
 			dilation = dilation_factor ** i
 			self.conv_layers.append(ResConvLayer(resid_channels, gate_channels, kernel_size, dilation))
 			if i == 0:
-				# if first layer, upsample
+				# if first layer, downsample
 				self.conv_layers.append(DownConvLayer(resid_channels, gate_channels))
 				self.conv_layers.append(ResConvLayer(resid_channels, gate_channels, kernel_size, dilation))
 				self.conv_layers.append(DownConvLayer(resid_channels, gate_channels))
@@ -269,7 +270,7 @@ class StyledWavenetBlock(nn.Module):
 
 		#### input = (B, resid_channels, T)
 		#### output = (B, out_channels, T*4)
-		
+
 		self.conv_layers = nn.ModuleList()
 
 		for i in range(n_layers):
@@ -281,7 +282,7 @@ class StyledWavenetBlock(nn.Module):
 				self.conv_layers.append(UpConvLayer(resid_channels, gate_channels))
 				self.conv_layers.append(StyledConvLayer(resid_channels, gate_channels, style_dim, kernel_size, dilation, noise))
 				self.conv_layers.append(UpConvLayer(resid_channels, gate_channels))
-
+		# final output linear layer
 		if resid_channels != out_channels:
 			self.conv_layers.append(Conv1d1x1(resid_channels, out_channels))
 

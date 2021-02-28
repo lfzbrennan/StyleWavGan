@@ -1,30 +1,39 @@
 import torch
 import torch.nn as nn
 
-from layers import *
+from layers import WavenetBlock, StyledWavenetBlock, EqualLinear, Conv1d1x1
 
-
+# constant learned input (used instead of variable input for classic GANs)
 class ConstantInput(nn.Module):
-    def __init__(self, channel, size=4):
-        super().__init__()
-        self.channel = channel
-        self.size = size
+	def __init__(self, channel, size=4):
+		super().__init__()
+		self.channel = channel
+		self.size = size
 
-        self.input = nn.Parameter(torch.randn(1, self.channel, self.size))
+		self.input = nn.Parameter(torch.randn(1, self.channel, self.size))
 
-    def forward(self, input):
-        batch = input.shape[0]
-        out = self.input.repeat(batch, 1, 1)
+	def forward(self, input):
+		batch = input.shape[0]
+		out = self.input.repeat(batch, 1, 1)
 
-        return out
+		return out
 
+# generates an audio sample
 class Generator(nn.Module):
 	def __init__(self, style_dim=256, gate_channels=512):
 		super().__init__()
 
-		# learning input embedding = 64x1024
+		# (n_layers, output_channel, noise?)
+		self.block_map = [
+			(5, 512, True),
+			(7, 256, True),
+			(9, 128, True),
+			(11, 64, True),
+			(13, 32, False)
+		]
 
-		self.input_channels = 1024
+		# learning input embedding = 64x1024
+		self.input_channels = self.block_map[0][1]
 		self.input_length = 128
 		self.output_channels = 128
 
@@ -33,7 +42,6 @@ class Generator(nn.Module):
 
 		self.n_mlp = 8
 		self.lr_mlp = .01
-
 
 		# learned constant input embedding
 		self.input = ConstantInput(self.input_channels, self.input_length)
@@ -44,16 +52,6 @@ class Generator(nn.Module):
 			self.mlp_layers.append(EqualLinear(self.style_dim, self.style_dim, self.lr_mlp, activation=True))
 
 		self.style = nn.Sequential(*self.mlp_layers)
-
-
-		# (n_layers, output_channel)
-		self.block_map = [
-			(5, 512, True),
-			(7, 256, True),
-			(9, 128, True),
-			(11, 64, True),
-			(13, 32, False)
-		]
 
 		# base wavenet blocks
 		self.wavenet_blocks = nn.ModuleList()
@@ -67,8 +65,7 @@ class Generator(nn.Module):
 			self.wavenet_blocks.append(StyledWavenetBlock(in_channels, out_channels, self.gate_channels, self.style_dim, n_layers=layers, noise=noise))
 
 		self.output_linear = Conv1d1x1(self.block_map[-1][1], 1)
-
-		# output layer -> 256 softmax in this case
+		# output layer -> [-1, 1] tanh
 		self.output = nn.Tanh()
 
 
@@ -95,19 +92,10 @@ class Generator(nn.Module):
 		# get output function and return output
 		return self.output(out), latents
 
-
-
-
+# descriminator
 class Descriminator(nn.Module):
 	def __init__(self, gate_channels=512):
 		super().__init__()
-
-		# learning input embedding = 64x1024
-
-		self.input_channels = 128
-		self.output_channels = 128
-
-		self.gate_channels = gate_channels
 
 		# (n_layers, output_channel)
 		self.block_map = [
@@ -119,7 +107,14 @@ class Descriminator(nn.Module):
 
 		]
 
-		self.input_linear = Conv1d1x1(1, self.block_map[0][1])
+		# learning input embedding = 64x1024
+
+		self.input_channels = self.block_map[0][1]
+		self.output_channels = 128
+
+		self.gate_channels = gate_channels
+
+		self.input_linear = Conv1d1x1(1, self.input_channels)
 
 		# base wavenet blocks
 		self.wavenet_blocks = nn.ModuleList()
@@ -140,11 +135,11 @@ class Descriminator(nn.Module):
 
 	def forward(self, audio):
 
+		# first block
 		audio = self.input_linear(audio)
 		# push through wavenet blocks
 		for i, block in enumerate(self.wavenet_blocks):
 			audio = block(audio)
-
 
 		out = audio.view(audio.shape[0], -1)
 		#print(out.shape)
