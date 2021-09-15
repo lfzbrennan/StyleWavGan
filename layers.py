@@ -3,19 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 
-
-# 1d convolution wrapper
-def Conv1d(in_channels, out_channels, kernel_size, dropout=0, **kwargs):
-	m = nn.Conv1d(in_channels, out_channels, kernel_size, **kwargs)
-	nn.init.kaiming_normal_(m.weight, nonlinearity="relu")
-	if m.bias is not None:
-		nn.init.constant_(m.bias, 0)
-	return nn.utils.weight_norm(m)
-
-
 # 1x1 1d convolution wrapper
 def Conv1d1x1(in_channels, out_channels, bias=True):
-	return Conv1d(in_channels, out_channels, kernel_size=1, padding=0,
+	return nn.Conv1d(in_channels, out_channels, kernel_size=1, padding=0,
 				  dilation=1, bias=bias)
 
 # noise injection module
@@ -94,7 +84,7 @@ class StyledConv1d(nn.Module):
 		self.in_channel = in_channel
 		self.out_channel = out_channel
 
-		fan_in = in_channel * kernel_size ** 2
+		fan_in = in_channel * kernel_size
 		self.scale = 1 / math.sqrt(fan_in)
 		self.padding = (kernel_size - 1) // 2 * dilation
 		self.dilation = dilation
@@ -164,7 +154,6 @@ class ResConvLayer(nn.Module):
 		super().__init__()
 
 		# 1d styled convolution
-
 		self.conv = EqualConv1d(resid_channels, gate_channels, kernel_size=kernel_size, dilation=dilation, padding=(kernel_size - 1) // 2 * dilation)
 
 		# output convolution
@@ -227,7 +216,6 @@ class UpConvLayer(nn.Module):
 
 		x = self.conv1x1_out(x)* math.sqrt(0.5)
 
-
 		return x
 
 
@@ -239,6 +227,8 @@ class WavenetBlock(nn.Module):
 
 		#### input = (B, resid_channels, T)
 		#### output = (B, out_channels, T//4)
+
+		gate_channels = resid_channels * 2
 
 		self.conv_layers = nn.ModuleList()
 
@@ -252,6 +242,7 @@ class WavenetBlock(nn.Module):
 				self.conv_layers.append(ResConvLayer(resid_channels, gate_channels, kernel_size, dilation))
 				self.conv_layers.append(DownConvLayer(resid_channels, gate_channels))
 
+		#self.conv_layers.append(nn.Dropout())
 		if resid_channels != out_channels:
 			self.conv_layers.append(Conv1d1x1(resid_channels, out_channels))
 
@@ -264,7 +255,7 @@ class WavenetBlock(nn.Module):
 
 ## generator block
 class StyledWavenetBlock(nn.Module):
-	def __init__(self, resid_channels = 512, out_channels = 512, gate_channels = 512, style_dim = 512, kernel_size = 3, n_layers = 10, dilation_factor = 2, noise=False):
+	def __init__(self, resid_channels = 512, out_channels = 512, style_dim = 512, kernel_size = 3, n_layers = 10, dilation_factor = 2, noise=False):
 		super().__init__()
 
 
@@ -272,6 +263,8 @@ class StyledWavenetBlock(nn.Module):
 		#### output = (B, out_channels, T*4)
 
 		self.conv_layers = nn.ModuleList()
+
+		gate_channels = resid_channels * 2
 
 		for i in range(n_layers):
 			# add residual layer

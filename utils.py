@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import torch.nn as nn
 import os
 from scipy.io.wavfile import write
 
@@ -20,4 +21,15 @@ def save_audio_sample(save_dir, data, mu=128):
 
 # quantize (-1.0, 1.0) -> (-1.0, 1.0)
 def quantize(data, mu=128):
-	return np.round(data * mu) / mu
+
+	return torch.round(data * mu) / mu
+
+def softmax_to_tanh(data):
+	sparse_to_value = np.linspace(-1, 1, 256)
+
+	return torch.tensor(sparse_to_value[torch.argmax(data, dim=1)])
+
+def init_weights(m):
+	if type(m) == nn.Conv1d:
+		torch.nn.init.normal(m.weight)
+		m.bias.data.fill_(0.0)

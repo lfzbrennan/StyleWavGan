@@ -1,15 +1,42 @@
 
 from torch.utils.data import Dataset
+from abc import abstractmethod
 import numpy as np
 import random
-import librosa
+from pydub import AudioSegment
+import torch
 import glob
 from utils import quantize
 
+# stylewavgan interface to create custom datasets to use
+class StyleWavGANDataset(Dataset):
+
+	# initialize -> probably want to initialize audio length
+	@abstractmethod
+	def __init__(self, *args, **kwargs):
+		pass
+
+	# return length of dataset
+	@abstractmethod
+	def __len__(self):
+		pass
+
+	# default for PyTorch datasets
+	def __getitem__(self, index):
+		return self.load_audio(index)
+
+	# return audio sample of length audio_length
+	# expecting FloatTensor between [-1, 1] to be output
+	@abstractmethod
+	def load_audio(self, index):
+		pass
+
+
 # dataset based on the FMA music dataset
-class FMADataset(Dataset):
-	def __init__(self, augment, input_length=2**17, file_root="../../datasets/fma_large/**/*.wav"):
-		self.files = glob.glob(file_root, recursive=True)
+class FMADataset(StyleWavGANDataset):
+	def __init__(self, augment, input_length):
+		self.data_root = "../../datasets/fma_large/**/*.mp3"
+		self.files = glob.glob(self.file_root, recursive=True)
 		self.input_length = input_length
 		self.augment = augment
 	def __len__(self):
@@ -17,27 +44,25 @@ class FMADataset(Dataset):
 	def __getitem__(self, index):
 		return self.load_audio(index)
 
-	# process and load chosen audio segment
+	# process and load chosen audio segments
 	def load_audio(self, index):
-		audio, _ = librosa.load(self.files[index])
-
-		audio = self.augment.augment(audio)
+		audio = AudioSegment.from_mp3(self.files[index]).set_frame_rate(16000).get_array_of_samples()
+		audio /= np.max(np.absolute(audio))
 		audio = self.pad(audio)
 
 		random_index = random.randint(0, len(audio) - self.input_length)
 		audio = audio[random_index:random_index + self.input_length]
+
 		return self.process_audio(audio)
 
-	# normalize audio from 8bit wav (0-255) to float32 (-1.0, 1.0)
+	# normalize audio from 8bit wav (0-255) to float32 [-1.0, 1.0]
 	def process_audio(self, audio):
-		audio = audio.astype("float32")
-		audio = (audio - 128) / 128
-
+		audio = torch.FloatTensor(audio)
 		# quantize first
 		return quantize(audio)
 
 	# pad to audio length, makes sure audio segment self.input_length long
-	def pad_audio(self, audio):
+	def pad(self, audio):
 		if len(audio) > self.input_length:
 			return audio[:self.input_length]
 		audio = np.concatenate((audio, [0] * (self.input_length - len(audio))))

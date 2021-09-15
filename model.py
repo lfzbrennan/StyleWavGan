@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
+from utils import quantize
 from layers import WavenetBlock, StyledWavenetBlock, EqualLinear, Conv1d1x1
 
 # constant learned input (used instead of variable input for classic GANs)
@@ -20,27 +22,35 @@ class ConstantInput(nn.Module):
 
 # generates an audio sample
 class Generator(nn.Module):
-	def __init__(self, style_dim=256, gate_channels=512):
+	def __init__(self, style_dim, layers, channel_mult):
 		super().__init__()
 
-		# (n_layers, output_channel, noise?)
+		# (n_layers, output_channel, noise)
+
+		''' block map with default settings:
 		self.block_map = [
-			(5, 512, True),
-			(7, 256, True),
-			(9, 128, True),
-			(11, 64, True),
-			(13, 32, False)
+			(5, 256, True),
+			(7, 128, True),
+			(9, 64, True),
+			(11, 32, True),
+			(13, 16, False)
+		]'''
+
+		self.layers = layers
+		self.channel_mult = channel_mult
+
+		self.block_map = [
+		(5 + 2 * i, self.channel_mult * 16 * 2 ** (self.layers - i - 1), False if i == self.layers - 1 else True)
+		for i in range(self.layers)
 		]
 
 		# learning input embedding = 64x1024
 		self.input_channels = self.block_map[0][1]
 		self.input_length = 128
-		self.output_channels = 128
 
-		self.gate_channels = gate_channels
 		self.style_dim = style_dim
 
-		self.n_mlp = 8
+		self.n_mlp = 4
 		self.lr_mlp = .01
 
 		# learned constant input embedding
@@ -62,11 +72,29 @@ class Generator(nn.Module):
 			else:
 				in_channels = self.block_map[i-1][1]
 
-			self.wavenet_blocks.append(StyledWavenetBlock(in_channels, out_channels, self.gate_channels, self.style_dim, n_layers=layers, noise=noise))
+			self.wavenet_blocks.append(StyledWavenetBlock(in_channels, out_channels, self.style_dim, n_layers=layers, noise=noise))
 
 		self.output_linear = Conv1d1x1(self.block_map[-1][1], 1)
 		# output layer -> [-1, 1] tanh
 		self.output = nn.Tanh()
+
+		'''
+		different output layers ->>>> this one uses smooth tanh but can be adapted
+		as needed
+		if self.output == "tanh":
+			### tanh output
+			self.output_linear = Conv1d1x1(self.block_map[-1][1], 1)
+			# output layer -> [-1, 1] tanh
+			self.output = nn.Tanh()
+
+
+		elif self.output == "softmax":
+			### softmax output
+
+			self.output_linear = Conv1d1x1(self.block_map[-1][1], 256)
+			# output layer -> [0, 255] softmax
+			self.output = nn.Softmax()
+		'''
 
 
 	def forward(self, style):
@@ -75,44 +103,57 @@ class Generator(nn.Module):
 		# if using one style, style is a single tensor (for training)
 		# edit to accomodate this
 
-		latents = [self.style(s) for s in style]
-		#latents = self.style(style)
+		# assuming multiple styles
+		#latents = [self.style(s) for s in style]
+
+		# assuming single style
+		latents = self.style(style)
 
 		# push through constant learned layer
-		out = self.input(latents[0])
+		out = self.input(latents)
 
 		# push through wavenet blocks
 		for i, block in enumerate(self.wavenet_blocks):
-			out = block(out, latents[i % len(latents)])
+			# single styles
+			out = block(out, latents)
+
+			# multiple styles
+			#out = block(out, latents[i % len(latents)])
 
 
-		out = self.output_linear(out)
+		out = self.output(self.output_linear(out))
 
 
 		# get output function and return output
-		return self.output(out), latents
+		return quantize(out), latents
 
 # descriminator
 class Descriminator(nn.Module):
-	def __init__(self, gate_channels=512):
+	def __init__(self, layers, channel_mult):
 		super().__init__()
 
 		# (n_layers, output_channel)
-		self.block_map = [
-			(13, 32),
-			(11, 64),
-			(9, 128),
-			(7, 256),
-			(5, 512)
 
+		'''block map with default settings:
+		self.block_map = [
+			(13, 16),
+			(11, 32),
+			(9, 64),
+			(7, 128),
+			(5, 256)
+		]'''
+
+		self.layers = layers
+		self.channel_mult = channel_mult
+
+		self.block_map = [
+		(5 + 2 * (self.layers - i - 1), self.channel_mult * 16 * 2 ** i)
+		for i in range(self.layers)
 		]
 
-		# learning input embedding = 64x1024
-
 		self.input_channels = self.block_map[0][1]
-		self.output_channels = 128
+		self.output_linear_channels = 128
 
-		self.gate_channels = gate_channels
 
 		self.input_linear = Conv1d1x1(1, self.input_channels)
 
@@ -125,18 +166,17 @@ class Descriminator(nn.Module):
 			else:
 				in_channels = self.block_map[i-1][1]
 
-			self.wavenet_blocks.append(WavenetBlock(in_channels, out_channels, self.gate_channels, n_layers=layers))
+			self.wavenet_blocks.append(WavenetBlock(in_channels, out_channels, n_layers=layers))
 
 		self.final_layer = nn.Sequential(
-			EqualLinear(self.output_channels * self.block_map[-1][1], self.block_map[-1][1], activation=True),
-			EqualLinear(self.block_map[-1][1], 1)
+			nn.LayerNorm(self.block_map[-1][1] * self.output_channels),
+			EqualLinear(self.block_map[-1][1] * self.output_channels, 1)
 			)
-
 
 	def forward(self, audio):
 
 		# first block
-		audio = self.input_linear(audio)
+		audio = F.relu(self.input_linear(audio))
 		# push through wavenet blocks
 		for i, block in enumerate(self.wavenet_blocks):
 			audio = block(audio)

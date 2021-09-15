@@ -7,7 +7,7 @@ import random
 # adaptive augment class based on StyleGan2 paper
 class AdaptiveAugment():
 	def __init__(self, aug_target=.6, aug_len=5e5, update_every=8, device=None):
-		self.data_aug_target = aug_target
+		self.ada_aug_target = aug_target
 		self.ada_aug_len = aug_len
 		self.update_every = update_every
 
@@ -54,11 +54,11 @@ class AdaptiveAugment():
 
 	# augment the amplitude of the audio segment
 	def amp_augment(self, audio):
-		audio *= random.randrange(.5, 2)
-		audio = np.clip(audio, 0, 255)
+		audio *= random.uniform(.5, 2.0)
+		audio = np.clip(audio, -1, 1)
 		return audio
 
 	# augment frequency of audio segment
 	def freq_augment(self, audio):
-		audio = time_stretch(audio, rate=random.randrange(.5, 2))
+		audio = time_stretch(audio, rate=random.uniform(.5, 2.0))
 		return audio
