@@ -10,7 +10,7 @@ the style inputs as needed. As in the paper, the descriminator architecture mirr
 generator architecture, without the style sythesis and normalization. Path length regularization
 is implemented (as well as normal descriminator regularization) lazily.
 
-![StyleGan2 Normalization](./images/weight_demod.png)
+![StyleGan2 Normalization](./images/weight_demod.jpeg)
 StyleGan 2 normalization using weight modulation, as shown using a standard 2D convolutional
 neural network. A is the output of the sythesis network which transforms the style
 as needed.
