@@ -1,0 +1,12 @@
+Warning: wildcards not supported in HTTP.
+--2021-09-15 15:49:13--  https://miro.medium.com/max/1400/1*ODLv_6RGHBmWYyNfEMRw2A.png
+Resolving miro.medium.com (miro.medium.com)... 162.159.153.4, 162.159.152.4, 2606:4700:7::a29f:9904, ...
+Connecting to miro.medium.com (miro.medium.com)|162.159.153.4|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 33722 (33K) [image/png]
+Saving to: ‘1*ODLv_6RGHBmWYyNfEMRw2A.png’
+
+     0K .......... .......... .......... ..                   100% 9.20M=0.003s
+
+2021-09-15 15:49:13 (9.20 MB/s) - ‘1*ODLv_6RGHBmWYyNfEMRw2A.png’ saved [33722/33722]
+
