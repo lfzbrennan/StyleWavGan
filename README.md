@@ -30,8 +30,8 @@ The basic training script is `train.py [args]`, with the choice dataset implemen
 
 ## References
 
-[StyleGan2](https://arxiv.org/abs/1912.04958)
-[Wavenet](https://arxiv.org/abs/1609.03499)
+[StyleGan2 Paper](https://arxiv.org/abs/1912.04958)
+[Wavenet Paper](https://arxiv.org/abs/1609.03499)
 
 ## Examples and Pretrained Models
 *TODO*
