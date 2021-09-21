@@ -247,7 +247,7 @@ def train(args):
 				print(f"D Loss: {d_loss}\tG Loss: {g_loss}\tEpoch: {cur_epoch + 1}\tIteration: {step + 1}/{len(dataloader)}")
 				print(f"Real Max: {torch.max(real_audio)}\tReal Min: {torch.min(real_audio)}")
 				print(f"Fake Max: {torch.max(fake_audio)}\tFake Min: {torch.min(fake_audio)}")
-				print(f"Real Pred: {real_pred.item()}\tFake Pred: {fake_pred.item()}")
+				#print(f"Real Pred: {real_pred.item()}\tFake Pred: {fake_pred.item()}")
 
 			# log and save sample if applicable
 			if get_rank() == 0:
