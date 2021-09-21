@@ -242,13 +242,14 @@ def train(args):
 			if args.g_reg and global_step % args.num_g_reg == 0:
 				avg_reg_g_loss += loss_reduced["g_reg"].mean().item()
 
-
+			# for debugging
+			'''
 			if get_rank() == 0 and global_step % 10 == 0:
 				print(f"D Loss: {d_loss}\tG Loss: {g_loss}\tEpoch: {cur_epoch + 1}\tIteration: {step + 1}/{len(dataloader)}")
 				print(f"Real Max: {torch.max(real_audio)}\tReal Min: {torch.min(real_audio)}")
 				print(f"Fake Max: {torch.max(fake_audio)}\tFake Min: {torch.min(fake_audio)}")
 				#print(f"Real Pred: {real_pred.item()}\tFake Pred: {fake_pred.item()}")
-
+			'''
 			# log and save sample if applicable
 			if get_rank() == 0:
 				if global_step % args.save_log_interval == 0 or global_step == 1:
