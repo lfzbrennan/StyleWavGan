@@ -95,12 +95,14 @@ def g_regularize(fake_audio, latents, mean_path_length, decay=0.01):
 	return path_penalty, path_mean.detach(), path_lengths
 
 # main train function
-def train(args, distributed=True):
+def train(args):
 	output_dir = args.output_dir
 	if not os.path.exists(output_dir):
 		os.mkdir(output_dir)
 
 	logger = Logger(output_dir + "/out.log")
+
+	distributed = not args.not_distributed
 
 	if distributed:
 		device=torch.device("cuda")
@@ -274,6 +276,7 @@ def train(args, distributed=True):
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--local_rank", type=int, default=0, help="local rank for distributed training")
+	parser.add_argument("--not_distributed", default=False, action="store_true", help="if non-distributive training")
 	parser.add_argument("--batch_size", type=int, default=2, help="batch size for each gpu")
 	parser.add_argument("--epochs", type=int, default=10, help="# training epochs")
 	parser.add_argument("--audio_length", type=int, default=2**17, help="audio length in samples (default is 2**17 ~= 8 seconds for 16kHz sample)")
