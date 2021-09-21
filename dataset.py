@@ -36,7 +36,7 @@ class StyleWavGANDataset(Dataset):
 class FMADataset(StyleWavGANDataset):
 	def __init__(self, augment, input_length):
 		self.data_root = "../../datasets/fma_large/**/*.mp3"
-		self.files = glob.glob(self.file_root, recursive=True)
+		self.files = glob.glob(self.data_root, recursive=True)
 		self.input_length = input_length
 		self.augment = augment
 	def __len__(self):
