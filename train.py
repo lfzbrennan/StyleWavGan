@@ -125,7 +125,7 @@ def train(args):
 	g = Generator(args.style_dim, args.layers, args.channel_mult).to(device)
 	d = Descriminator(args.layers, args.channel_mult).to(device)
 
-	if args.load_from_cp:
+	if args.load_from_cp != "none":
 		g.load_state_dict(torch.load(f"{args.load_from_cp}/g.pt"))
 		d.load_state_dict(torch.load(f"{args.load_from_cp}/d.pt"))
 	else:
