@@ -169,8 +169,8 @@ class Descriminator(nn.Module):
 			self.wavenet_blocks.append(WavenetBlock(in_channels, out_channels, n_layers=layers))
 
 		self.final_layer = nn.Sequential(
-			nn.LayerNorm(self.block_map[-1][1] * self.output_channels),
-			EqualLinear(self.block_map[-1][1] * self.output_channels, 1)
+			nn.LayerNorm(self.block_map[-1][1] * self.output_linear_channels),
+			EqualLinear(self.block_map[-1][1] * self.output_linear_channels, 1)
 			)
 
 	def forward(self, audio):
