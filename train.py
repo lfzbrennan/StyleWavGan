@@ -102,6 +102,9 @@ def train(args):
 
 	logger = Logger(output_dir + "/out.log")
 
+	for arg in vars(args):
+		logger.log(f"{arg}: {getattr(args, arg)}")
+
 	distributed = not args.not_distributed
 
 	if distributed:
@@ -298,5 +301,6 @@ if __name__ == "__main__":
 	parser.add_argument("--num_augment", type=int, default=1000, help="adjust adaptive augment step every num_augment interations")
 	parser.add_argument("--load_from_cp", type=str, default="none", help="directory to start training from checkpoint")
 	parser.add_argument("--output_dir", type=str, default="outputs/1", help="output directory for logs, saved models, and sampled")
+	parser.add_argument("--description", type=str, default="Training", help="description of training for log file")
 	args = parser.parse_args()
 	train(args)
