@@ -12,15 +12,19 @@ def save_model(save_dir, g, d):
 	torch.save(d.state_dict(), f"{save_dir}/d.pt")
 
 # save audio sample
-def save_audio_sample(save_dir, data, mu=128):
+def save_audio_sample(save_dir, data, as_short=False):
 	if not os.path.exists(save_dir):
 		os.mkdir(save_dir)
-	data_short = (data + 1) * mu
-	data_short = data_short.astype("uint8")
-	write(f"{save_dir}/sample.wav", 16000, data_short.T)
+	if as_short: # 8 bits
+		data = (data + 1) * 128 # 8 bit
+		data = data.astype("uint8")
+	write(f"{save_dir}/sample.wav", 16000, data.T)
 
 # quantize (-1.0, 1.0) -> (-1.0, 1.0)
 def quantize(data, mu=128):
+
+	if mu >= 2147483648: # quantizing to higher than int32
+		return data
 
 	return torch.round(data * mu) / mu
 

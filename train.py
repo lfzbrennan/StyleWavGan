@@ -291,6 +291,7 @@ if __name__ == "__main__":
 	parser.add_argument("--g_reg", default=False, action="store_true", help="turn on generator regularization")
 	parser.add_argument("--d_reg_weight", type=float, default=1e-10, help="descriminator regularization weight")
 	parser.add_argument("--g_reg_weight", type=float, default=2, help="generator regularization weight")
+	parser.add_argument("--mu", type=int, default=128, help="mu for quantizing. 128 mu = 8 bit quantize")
 	parser.add_argument("--augment", default=False, action="store_true", help="turn on adaptive data augmentation")
 	parser.add_argument("--num_d_reg", type=int, default=20, help="step descriminator regularization step every num_d_reg interations")
 	parser.add_argument("--num_g_reg", type=int, default=10, help="step generator regularization step every num_g_reg interations")
