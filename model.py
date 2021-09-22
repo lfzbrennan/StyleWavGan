@@ -48,7 +48,7 @@ class Generator(nn.Module):
 
 		# learning input embedding = 64x1024
 		self.input_channels = self.block_map[0][1]
-		self.input_length = input_length / (4 ** len(self.block_map))
+		self.input_length = input_length // (4 ** len(self.block_map))
 
 		self.style_dim = style_dim
 
@@ -156,7 +156,7 @@ class Descriminator(nn.Module):
 		]
 
 		self.input_channels = self.block_map[0][1]
-		self.output_linear_channels = input_length / (4 ** len(self.block_map))
+		self.output_linear_channels = input_length // (4 ** len(self.block_map))
 
 
 		self.input_linear = Conv1d1x1(1, self.input_channels)
