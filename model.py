@@ -42,7 +42,7 @@ class Generator(nn.Module):
 		self.channel_mult = channel_mult
 
 		self.block_map = [
-		(5 + 2 * i, self.channel_mult * 16 * 2 ** (self.layers - i - 1), False if i == self.layers - 1 else True)
+		(5 + 2 * i, int(self.channel_mult * 16 * 2 ** (self.layers - i - 1)), False if i == self.layers - 1 else True)
 		for i in range(self.layers)
 		]
 
@@ -154,7 +154,7 @@ class Descriminator(nn.Module):
 		self.channel_mult = channel_mult
 
 		self.block_map = [
-		(5 + 2 * (self.layers - i - 1), self.channel_mult * 16 * 2 ** i)
+		(5 + 2 * (self.layers - i - 1), int(self.channel_mult * 16 * 2 ** i))
 		for i in range(self.layers)
 		]
 
