@@ -102,8 +102,9 @@ def train(args):
 
 	logger = Logger(output_dir + "/out.log")
 
-	for arg in vars(args):
-		logger.log(f"{arg}: {getattr(args, arg)}")
+	if get_rank() == 0:
+		for arg in vars(args):
+			logger.log(f"{arg}: {getattr(args, arg)}")
 
 	distributed = not args.not_distributed
 
