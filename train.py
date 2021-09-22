@@ -1,5 +1,5 @@
 from model import Generator, Descriminator
-from dataset import FMADataset
+from dataset import FMADataset, LibriSpeechDataset
 from utils import save_model, quantize, save_audio_sample, init_weights
 import os
 import contextlib
@@ -154,7 +154,7 @@ def train(args):
 	# create dataloaders
 	if args.augment:
 		augmenter = AdaptiveAugment()
-	dataset = FMADataset(augmenter if args.augment else None, input_length=args.audio_length, quantize=args.mu)
+	dataset = LibriSpeechDataset(augmenter if args.augment else None, input_length=args.audio_length, quantize=args.mu)
 	if distributed:
 		data_sampler = data.distributed.DistributedSampler(dataset, shuffle=True)
 	else:
