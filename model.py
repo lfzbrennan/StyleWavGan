@@ -50,6 +50,9 @@ class Generator(nn.Module):
 		self.input_channels = self.block_map[0][1]
 		self.input_length = input_length // (4 ** len(self.block_map))
 
+		print(self.input_channels)
+		print(self.input_length)
+
 		self.style_dim = style_dim
 
 		self.n_mlp = 4
