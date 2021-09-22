@@ -125,8 +125,8 @@ def train(args):
 	if get_rank() == 0: print("Building models...")
 
 	# build models (and optimizers) and put on correct device in parallel
-	g = Generator(args.style_dim, args.layers, args.channel_mult).to(device)
-	d = Descriminator(args.layers, args.channel_mult).to(device)
+	g = Generator(args.style_dim, args.layers, args.channel_mult, input_length=args.audio_length).to(device)
+	d = Descriminator(args.layers, args.channel_mult, input_length=args.audio_length).to(device)
 
 	if args.load_from_cp != "none":
 		g.load_state_dict(torch.load(f"{args.load_from_cp}/g.pt"))

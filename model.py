@@ -22,12 +22,14 @@ class ConstantInput(nn.Module):
 
 # generates an audio sample
 class Generator(nn.Module):
-	def __init__(self, style_dim, layers, channel_mult):
+	def __init__(self, style_dim, layers, channel_mult, input_length):
 		super().__init__()
 
 		# (n_layers, output_channel, noise)
 
 		''' block map with default settings:
+		 	- each layer increases length by 4x
+				* if input_length = 2 ** 17, then input_channels is 2 ** 7
 		self.block_map = [
 			(5, 256, True),
 			(7, 128, True),
@@ -46,7 +48,7 @@ class Generator(nn.Module):
 
 		# learning input embedding = 64x1024
 		self.input_channels = self.block_map[0][1]
-		self.input_length = 128
+		self.input_length = input_length / (4 ** len(self.block_map))
 
 		self.style_dim = style_dim
 
@@ -129,12 +131,14 @@ class Generator(nn.Module):
 
 # descriminator
 class Descriminator(nn.Module):
-	def __init__(self, layers, channel_mult):
+	def __init__(self, layers, channel_mult, input_length):
 		super().__init__()
 
 		# (n_layers, output_channel)
 
 		'''block map with default settings:
+			- each layer decreases length by 4x
+				* if input_length = 2 ** 17, then output_linear_channels is 2 ** 7
 		self.block_map = [
 			(13, 16),
 			(11, 32),
@@ -152,7 +156,7 @@ class Descriminator(nn.Module):
 		]
 
 		self.input_channels = self.block_map[0][1]
-		self.output_linear_channels = 128
+		self.output_linear_channels = input_length / (4 ** len(self.block_map))
 
 
 		self.input_linear = Conv1d1x1(1, self.input_channels)
