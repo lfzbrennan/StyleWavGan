@@ -34,11 +34,12 @@ class StyleWavGANDataset(Dataset):
 
 
 class LibriSpeechDataset(StyleWavGANDataset):
-	def __init__(self, augment, input_length):
+	def __init__(self, augment, input_length, quantize=128):
 		self.data_root = "../../../datasets/LibriSpeech/**/*.flac"
 		self.files = glob.glob(self.data_root, recursive=True)
 		self.input_length = input_length
 		self.augment = augment
+		self.quantize = quantize
 	def __len__(self):
 		return len(self.files)
 	def __getitem__(self, index):
@@ -60,7 +61,7 @@ class LibriSpeechDataset(StyleWavGANDataset):
 	def process_audio(self, audio):
 		audio = torch.FloatTensor(audio)
 		# quantize first
-		return quantize(audio)
+		return quantize(audio, self.quantize)
 
 	# pad to audio length, makes sure audio segment self.input_length long
 	def pad(self, audio):
@@ -71,11 +72,12 @@ class LibriSpeechDataset(StyleWavGANDataset):
 
 # dataset based on the FMA music dataset
 class FMADataset(StyleWavGANDataset):
-	def __init__(self, augment, input_length):
+	def __init__(self, augment, input_length, quantize=128):
 		self.data_root = "../../../datasets/fma_large/**/*.mp3"
 		self.files = glob.glob(self.data_root, recursive=True)
 		self.input_length = input_length
 		self.augment = augment
+		self.quantize = quantize
 	def __len__(self):
 		return len(self.files)
 	def __getitem__(self, index):
@@ -96,7 +98,7 @@ class FMADataset(StyleWavGANDataset):
 	def process_audio(self, audio):
 		audio = torch.FloatTensor(audio)
 		# quantize first
-		return quantize(audio)
+		return quantize(audio, self.quantize)
 
 	# pad to audio length, makes sure audio segment self.input_length long
 	def pad(self, audio):
