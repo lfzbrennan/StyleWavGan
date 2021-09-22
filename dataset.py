@@ -35,7 +35,7 @@ class StyleWavGANDataset(Dataset):
 
 class LibriSpeechDataset(StyleWavGANDataset):
 	def __init__(self, augment, input_length, quantize=128):
-		self.data_root = "../../../datasets/LibriSpeech/**/*.flac"
+		self.data_root = "../../../datasets/libri_360/**/*.flac"
 		self.files = glob.glob(self.data_root, recursive=True)
 		self.input_length = input_length
 		self.augment = augment
