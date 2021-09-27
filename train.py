@@ -155,7 +155,7 @@ def train(args):
 	# create dataloaders
 	if args.augment:
 		augmenter = AdaptiveAugment()
-	dataset = FMADataset(augmenter if args.augment else None, input_length=args.audio_length, quantize=args.mu)
+	dataset = FMADataset(augmenter if args.augment else None, args.audio_length, quantize=args.mu)
 	if distributed:
 		data_sampler = data.distributed.DistributedSampler(dataset, shuffle=True)
 	else:
