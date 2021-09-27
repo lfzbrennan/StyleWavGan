@@ -97,12 +97,12 @@ def g_regularize(fake_audio, latents, mean_path_length, decay=0.01):
 # main train function
 def train(args):
 	output_dir = args.output_dir
-	if not os.path.exists(output_dir):
-		os.mkdir(output_dir)
-
-	logger = Logger(output_dir + "/out.log")
 
 	if get_rank() == 0:
+		if not os.path.exists(output_dir):
+			os.mkdir(output_dir)
+
+		logger = Logger(output_dir + "/out.log")
 		for arg in vars(args):
 			logger.log(f"{arg}: {getattr(args, arg)}")
 
@@ -155,7 +155,7 @@ def train(args):
 	# create dataloaders
 	if args.augment:
 		augmenter = AdaptiveAugment()
-	dataset = FMADataset((augmenter if args.augment else None, input_length=args.audio_length, quantize=args.mu)
+	dataset = FMADataset(augmenter if args.augment else None, input_length=args.audio_length, quantize=args.mu)
 	if distributed:
 		data_sampler = data.distributed.DistributedSampler(dataset, shuffle=True)
 	else:
